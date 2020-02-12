@@ -31,8 +31,7 @@ pub fn listing_filter(listings: Box<[JsValue]>, against: &str) -> Box<[JsValue]>
             None => log("Could not read listing as string"),
             Some(x) => {
                 if x.contains(against) {
-                    let y = listing.clone();
-                    result.push(y);
+                    result.push(JsValue::from_str(&x));
                 }
             }
         }
@@ -40,3 +39,6 @@ pub fn listing_filter(listings: Box<[JsValue]>, against: &str) -> Box<[JsValue]>
 
     result.into_boxed_slice()
 }
+
+// pub fn listing_sort(listings: Box<[JsValue]>, against: &str) -> Box<[JsValue]> {
+// }
