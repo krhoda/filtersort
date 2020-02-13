@@ -74,7 +74,7 @@ const App = () => {
 
 	const listingsReducer = (state, action) => {
 		if (action.type === 'new_listings') {
-			return action.listings.map(mapStrToElm)
+			return action.listings.map(mapObjToElm)
 		}
 	}
 
@@ -119,9 +119,10 @@ const App = () => {
 
 	let loaded = <p>Loading Wasm Button...</p>;
 	if (wasmLoaded) {
-		loaded = <input type="text" onChange={(e) => {doSomeWasm(immutableListings, e.target.value)}}/>;
+		loaded = <input type="text" onChange={(e) => {doSomeWasm(sampleListings, e.target.value)}}/>;
 	}
 
+	console.log(sampleListings[0]);
 	console.log('UI RENDER:');
 	return (
 		<div>
