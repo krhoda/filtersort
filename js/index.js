@@ -1,11 +1,24 @@
 import React, {useEffect, useReducer, useState} from "react";
 import ReactDOM from "react-dom";
+import sampleListings from '../data/tenklistings.js';
+
+const getArrayOfListingText = (listOfObjs) => {
+	let listingText = [];
+	listOfObjs.forEach((obj) => {
+		let acc = ''; // start with a string to get the addition we want.
+		let keys = Object.keys(obj);
+		keys.forEach((key) => {
+			let val = obj[key];
+			acc += val;
+		});
+
+		listingText.push(acc);
+	});
+
+	return listingText;
+}
 
 const wasmWorker = window.wasmWorker;
-
-/* const doSomeWasm = () => {
- * 	wasmWorker.postMessage({'action': 'do_wasm'});
- * } */
 
 const doSomeWasm = (listings, filter) => {
 	if (!filter) {
@@ -15,21 +28,31 @@ const doSomeWasm = (listings, filter) => {
 	wasmWorker.postMessage({'action': 'filter', 'payload': {listings: listings, filter: filter}});
 }
 
-const generateNThousandListings = (n) => {
-	let k = n * 1000;
-	let s = 'The quick dog jumped over the lazy brown fox';
-	let strs = [];
-	for (let i = 0; i < k; i++) {
-		let [fst, snd] = generateRandomSubstrIndicies(s);
-		let innerText = s.substr(fst, snd);
-		strs.push(innerText);
-	}
-
-	return strs;
-}
-
 const mapStrToElm = (str, i) => {
 	return <p key={`iteration-${i}`}>{str}</p>;
+}
+
+const mapObjToElm = (obj, i) => {
+	let cells = [];
+	let keys = Object.keys(obj);
+	keys.forEach((key, i) => {
+		cells.push(<td key={`inner-iteration-${i}`}>{obj[key]}</td>);
+	});
+	return (
+		<tr key={`outer-iteration-${i}`}>
+			{cells}
+		</tr>
+	);
+}
+
+const tableHeader = (obj) => {
+	let cells = [];
+	let keys = Object.keys(obj);
+	keys.forEach((key, i) => {
+		cells.push(<th key={`header-iteration-${i}`}>{key}</th>);
+	});
+
+	return <tr>{cells}</tr>
 }
 
 const generateRandomSubstrIndicies = (s) => {
@@ -40,7 +63,7 @@ const generateRandomSubstrIndicies = (s) => {
 	return [firstSubStr, secondSubStr]
 }
 
-const immutableListings = generateNThousandListings(10);
+const immutableListings = getArrayOfListingText(sampleListings);
 
 const App = () => {
 	const wasmReducer = (state, action) => {
@@ -56,10 +79,7 @@ const App = () => {
 	}
 
 	let [wasmLoaded, wasmDispatch] = useReducer(wasmReducer, false);
-	let [listingsElm, listingsDispatch] = useReducer(listingsReducer, immutableListings.map(mapStrToElm))
-
-	console.log('WASM LOADED IS');
-	console.log(wasmLoaded)
+	let [listingsElm, listingsDispatch] = useReducer(listingsReducer, sampleListings.map(mapObjToElm))
 
 	useEffect(() => {
 		wasmWorker.onmessage = (e) => {
@@ -102,11 +122,19 @@ const App = () => {
 		loaded = <input type="text" onChange={(e) => {doSomeWasm(immutableListings, e.target.value)}}/>;
 	}
 
+	console.log('UI RENDER:');
 	return (
 		<div>
 			<h1>GLORIOUS SORTING</h1>
 			{loaded}
-			{listingsElm}
+			<table>
+				<thead>
+					{tableHeader(sampleListings[0])}
+				</thead>
+				<tbody>
+					{listingsElm}
+				</tbody>
+			</table>
 		</div>
 	);
 };

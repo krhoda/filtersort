@@ -36,7 +36,6 @@ pub fn listing_filter(listings: Box<[JsValue]>, against: &str) -> Box<[JsValue]>
             }
         }
     }
-
     result.into_boxed_slice()
 }
 

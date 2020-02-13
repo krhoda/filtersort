@@ -11,6 +11,7 @@ const loadBindgen = (cb) => {
 }
 
 const sendReady = () => {
+	console.log('is it here?');
 	postMessage({action: 'init', payload: {ready: ready}});
 };
 
@@ -20,11 +21,7 @@ const doBigComputation = () => {
 
 onmessage = (e) => {
 	console.log("In WORKER THREAD -- HEARD:");
-	console.log(e);
-
-	if (!ready && e.data.action !== 'init') {
-		// TODO: ERR OUT HERE?
-	}
+	console.log(e.data);
 
 	let {action, payload} = e.data;
 
@@ -37,7 +34,7 @@ onmessage = (e) => {
 
 			let cb = () => {
 				sendReady();
-				wasm_bindgen.print_listings(payload);
+				/* wasm_bindgen.print_listings(payload); */
 			}
 
 			loadBindgen(cb);
@@ -58,12 +55,12 @@ onmessage = (e) => {
 
 			let x = wasm_bindgen.listing_filter(payload.listings, payload.filter)
 			let msg = {
-				action: 'new_listings', 
+				action: 'new_listings',
 				payload: x
 			}
 
 			postMessage(msg);
-			
+
 			break;
 		}
 		default:
