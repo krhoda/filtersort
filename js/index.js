@@ -2,6 +2,77 @@ import React, {useEffect, useReducer, useState} from "react";
 import ReactDOM from "react-dom";
 import sampleListings from '../data/tenklistings.js';
 
+const sendTo = (input, worker = false) => {
+	let payload = packJSON(input);
+	if (!payload) {
+		return payload;
+	}
+
+	if (!worker) {
+		postMessage(payload, [payload]);
+		return true;
+	}
+
+	worker.postMessage(payload, [payload]);
+	return true;
+}
+
+const packJSON = (json) => {
+	try {
+		let str = JSON.stringify(json);
+		return packString(str);
+	} catch (err) {
+		console.error(err);
+		return false;
+	}
+}
+
+const packString = (str) => {
+	try {
+		let buf = new ArrayBuffer(str.length * 2); // 2 bytes for each char
+		let bufView = new Uint16Array(buf);
+		for (let i = 0, strLen = str.length; i < strLen; i++) {
+			bufView[i] = str.charCodeAt(i);
+		}
+
+		return buf;
+
+	} catch (err) {
+		console.error(`Could not process target into transferable array: ${err}, Target:`);
+		console.error(str);
+		return false;
+	}
+}
+
+const unpackToString = (bytes) => {
+	try {
+		let x = new Uint16Array(bytes).reduce((data, byte) => {
+			return data + String.fromCharCode(byte);
+		}, '');
+
+		return x;
+	} catch (err) {
+		console.error(`Could not process target from bytes to JSON: ${err}`);
+		return false;
+	}
+}
+
+const unpackToJSON = (bytes) => {
+	let str = unpackToString(bytes);
+	if (!str) {
+		return str;
+	}
+
+	try {
+		let obj = JSON.parse(str);
+		return obj;
+	} catch (err) {
+		console.error(`Could not process target from string to JSON: ${err}, Target:`);
+		console.error(str);
+		return false;
+	}
+}
+
 const getArrayOfListingText = (listOfObjs) => {
 	let listingText = [];
 	listOfObjs.forEach((obj) => {
@@ -22,10 +93,10 @@ const wasmWorker = window.wasmWorker;
 
 const doSomeWasm = (listings, filter) => {
 	if (!filter) {
-		postMessage({'action': 'new_listings', 'payload': immutableListings});
+		sendTo({'action': 'new_listings', 'payload': immutableListings}, false);
 		return;
 	}
-	wasmWorker.postMessage({'action': 'filter', 'payload': {listings: listings, filter: filter}});
+	sendTo({'action': 'filter', 'payload': {listings: listings, filter: filter}}, wasmWorker);
 }
 
 const mapStrToElm = (str, i) => {
@@ -93,7 +164,7 @@ const App = () => {
 				return
 			}
 
-			let {action, payload} = data;
+			let {action, payload} = unpackToJSON(data);
 			if (action === 'init') {
 				console.log("In UI THREAD -- ABOUT TO DISPATCH:");
 				console.log(action);
@@ -107,11 +178,12 @@ const App = () => {
 			}
 		}
 
-		wasmWorker.postMessage(
+		sendTo(
 			{
 				'action': 'init',
 				'payload': immutableListings
-			}
+			},
+			wasmWorker
 		);
 
 	}, [])
@@ -119,6 +191,7 @@ const App = () => {
 
 	let loaded = <p>Loading Wasm Button...</p>;
 	if (wasmLoaded) {
+		// TODO: Make Special Input:
 		loaded = <input type="text" onChange={(e) => {doSomeWasm(sampleListings, e.target.value)}}/>;
 	}
 

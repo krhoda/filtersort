@@ -12,18 +12,90 @@ const loadBindgen = (cb) => {
 
 const sendReady = () => {
 	console.log('is it here?');
-	postMessage({action: 'init', payload: {ready: ready}});
+	sendTo({action: 'init', payload: {ready: ready}}, false);
 };
 
 const doBigComputation = () => {
 	wasm_bindgen.big_computation();
 };
 
+const sendTo = (input, worker = false) => {
+	let payload = packJSON(input);
+	if (!payload) {
+		return payload;
+	}
+
+	if (!worker) {
+		postMessage(payload, [payload]);
+		return true;
+	}
+
+	worker.postMessage(payload, [payload]);
+	return true;
+}
+
+const packJSON = (json) => {
+	try {
+		let str = JSON.stringify(json);
+		return packString(str);
+	} catch (err) {
+		console.error(err);
+		return false;
+	}
+}
+
+const packString = (str) => {
+	try {
+		let buf = new ArrayBuffer(str.length * 2); // 2 bytes for each char
+		let bufView = new Uint16Array(buf);
+		for (let i = 0, strLen = str.length; i < strLen; i++) {
+			bufView[i] = str.charCodeAt(i);
+		}
+
+		return buf;
+
+	} catch (err) {
+		console.error(`Could not process target into transferable array: ${err}, Target:`);
+		console.error(str);
+		return false;
+	}
+}
+
+const unpackToString = (bytes) => {
+	try {
+		let x = new Uint16Array(bytes).reduce((data, byte) => {
+			return data + String.fromCharCode(byte);
+		}, '');
+
+		return x;
+	} catch (err) {
+		console.error(`Could not process target from bytes to JSON: ${err}`);
+		return false;
+	}
+}
+
+const unpackToJSON = (bytes) => {
+	let str = unpackToString(bytes);
+	if (!str) {
+		return str;
+	}
+
+	try {
+		let obj = JSON.parse(str);
+		return obj;
+	} catch (err) {
+		console.error(`Could not process target from string to JSON: ${err}, Target:`);
+		console.error(str);
+		return false;
+	}
+}
+
 onmessage = (e) => {
 	console.log("In WORKER THREAD -- HEARD:");
-	console.log(e.data);
+	let nextData = unpackToJSON(e.data);
+	console.log(nextData);
 
-	let {action, payload} = e.data;
+	let {action, payload} = nextData;
 
 	switch(action) {
 		case 'init':
@@ -53,13 +125,14 @@ onmessage = (e) => {
 				return;
 			}
 
+			// TODO: Memoize Here:
 			let x = wasm_bindgen.listing_filter(payload.listings, payload.filter)
 			let msg = {
 				action: 'new_listings',
 				payload: x
 			}
 
-			postMessage(msg);
+			sendTo(msg, false);
 
 			break;
 		}
